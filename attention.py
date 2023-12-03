@@ -38,19 +38,18 @@ class MultiheadAttention(nn.Module):
             if is_causal: # attn_mask only supports 2D atm
                 if attn_mask.dtype == torch.bool:
                     attn_output_weights = attn_output_weights.masked_fill(attn_mask, float('-inf'))
-                elif attn_mask.dtype == torch.float32:
+                elif attn_mask.dtype == torch.float32: # TODO: test both
                     attn_output_weights = attn_output_weights + attn_mask
             attn_output_weights = F.softmax(attn_output_weights, dim=-1)
             attn_output_weights = self.dropout1(attn_output_weights) # TODO: (N, L, S) in nn vs (N, L, S)
             attn_output = attn_output_weights @ v # (N, H, L, S) @ (N, H, S, E//H) = (N, H, L, E//H)
+            if average_attn_weights:
+                attn_output_weights.sum(dim=1) / self.num_heads
         else: # faster
             attn_output_weights = None
-            attn_output = F.scaled_dot_product_attention(q, k, v, attn_mask=attn_mask, dropout_p=self.dropout if self.training else 0, is_causal=is_causal)
+            attn_output = F.scaled_dot_product_attention(q, k, v, dropout_p=self.dropout if self.training else 0, is_causal=is_causal)
 
         attn_output = attn_output.transpose(1, 2).contiguous().view(N, L, E) # (N, L, E) # TODO: check contiguous
         attn_output = self.projection(attn_output)
-
-        if average_attn_weights:
-            attn_output_weights.sum(dim=1) / self.num_heads
 
         return attn_output, attn_output_weights
