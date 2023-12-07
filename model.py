@@ -46,6 +46,10 @@ class GPT(nn.Module):
         self.ln = nn.LayerNorm(embed_dim)
         self.linear = nn.Linear(embed_dim, vocab_dim)
         
+        # TODO: investigate https://paperswithcode.com/method/weight-tying
+        # self.token_embedding.weight = self.linear.weight
+        # val loss doesn't seem to be better from experiments
+        
         self.device = device # TODO: check if possible to .to(device) outside init and reference self.device
         self.to(device)
 
@@ -125,3 +129,18 @@ class GPT(nn.Module):
                 next_token = decode_fn(y_pred[print_batch_num].cpu().numpy())
                 print(next_token, end='')
         return x
+    
+    def save(self, path, optimizer_state_dict=None):
+        torch.save({
+            'model_state_dict': self.state_dict(),
+            'optimizer_state_dict': optimizer_state_dict, # to resume training
+        }, path)
+    
+    def load(self, path, optimizer=None):
+        checkpoint = torch.load(path)
+        self.load_state_dict(checkpoint['model_state_dict'])
+        if optimizer is not None:
+            optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
+    
+    def count_parameters(self):
+        return sum(p.numel() for p in self.parameters())
