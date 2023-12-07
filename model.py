@@ -22,6 +22,7 @@ class SelfAttentionBlock(nn.Module):
         self.register_buffer("attn_mask", torch.tril(torch.ones(sequence_dim, sequence_dim)) == 0) # flavor 2 - karpathy
 
         self.ln1 = nn.LayerNorm(embed_dim) # https://arxiv.org/pdf/2002.04745.pdf
+        # if nn.MultiheadAttention errors, make sure torch is v2.1.1
         self.mha = MultiheadAttention(embed_dim, num_heads, dropout=dropout, batch_first=True) # can prefix nn. to use torch's
         self.ln2 = nn.LayerNorm(embed_dim)
         self.mlp = MLP(embed_dim, embed_dim, dropout=dropout)
@@ -82,13 +83,14 @@ class GPT(nn.Module):
             loss.backward()
             optimizer.step()
     
+    @torch.no_grad() # avoids cuda out of memory error due to grads
     def evaluate(self, datasets, batch_size, val_steps):
         self.eval()
         losses = []
         for dataset in datasets:
             dataloader = torch.utils.data.DataLoader(dataset, batch_size=batch_size, shuffle=True)
             assert val_steps < len(dataloader)
-            losses_ = torch.full((val_steps,), float('nan'), device=self.device) # tested faster if same device
+            losses_ = torch.full((val_steps,), float('nan'), device=self.device) # slightly faster if same device
             for steps, (x, y) in enumerate(dataloader):
                 if steps >= val_steps:
                     break
@@ -96,8 +98,8 @@ class GPT(nn.Module):
                 y = y.to(self.device)
                 logits = self(x)
                 loss = self.get_loss(logits, y)
-                losses_[steps] = loss
-            losses.append(losses_.mean())
+                losses_[steps] = loss.item() # .item() avoids cuda out of memory error due to grads
+            losses.append(losses_.mean().item())
         return losses
 
     def generate(self, encode_fn, decode_fn, initial_texts, n_tokens, print_batch_num=0): # TODO: print batches simultaneously
