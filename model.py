@@ -1,5 +1,7 @@
 from attention import *
 
+# TODO: add type hints
+
 class MLP(nn.Module):
     def __init__(self, in_features, out_features, dropout=0.0):
         super().__init__()
@@ -32,17 +34,19 @@ class SelfAttentionBlock(nn.Module):
         return x # (N, L, E)
 
 class GPT(nn.Module):
-    def __init__(self, vocab_dim, sequence_dim, embed_dim, num_heads, num_layers, dropout=0.0):
+    def __init__(self, vocab_dim, sequence_dim, embed_dim, num_heads, num_layers, dropout=0.0, device='cpu'):
         super().__init__()
         self.sequence_dim = sequence_dim
 
-        self.dummy_param = nn.Parameter(torch.empty(0)) # to get device
         self.token_embedding = nn.Embedding(vocab_dim, embed_dim)
         self.position_embedding = nn.Embedding(sequence_dim, embed_dim)
         self.dropout = nn.Dropout(dropout)
         self.blocks = nn.Sequential(*[SelfAttentionBlock(sequence_dim, embed_dim, num_heads, dropout=dropout) for i in range(num_layers)])
         self.ln = nn.LayerNorm(embed_dim)
         self.linear = nn.Linear(embed_dim, vocab_dim)
+        
+        self.device = device # TODO: check if possible to .to(device) outside init and reference self.device
+        self.to(device)
 
     def forward(self, x): # (N, L)
         # N is batch, L is length of time series, E is embedding dim
@@ -62,6 +66,39 @@ class GPT(nn.Module):
         y_true = y_true.view(N*L) # # (N, L) -> (N * L)
         loss = F.cross_entropy(logits, y_true)
         return loss
+    
+    def fit(self, dataset_train, optimizer, batch_size, train_steps):
+        self.train()
+        dl_train = torch.utils.data.DataLoader(dataset_train, batch_size=batch_size, shuffle=True)
+        assert train_steps <= len(dl_train)
+        for steps, (x, y) in enumerate(dl_train):
+            if steps >= train_steps:
+                break
+            x = x.to(self.device)
+            y = y.to(self.device)
+            logits = self(x)
+            loss = self.get_loss(logits, y)
+            optimizer.zero_grad(set_to_none=True)
+            loss.backward()
+            optimizer.step()
+    
+    def evaluate(self, datasets, batch_size, val_steps):
+        self.eval()
+        losses = []
+        for dataset in datasets:
+            dataloader = torch.utils.data.DataLoader(dataset, batch_size=batch_size, shuffle=True)
+            assert val_steps < len(dataloader)
+            losses_ = torch.full((val_steps,), float('nan'), device=self.device) # tested faster if same device
+            for steps, (x, y) in enumerate(dataloader):
+                if steps >= val_steps:
+                    break
+                x = x.to(self.device)
+                y = y.to(self.device)
+                logits = self(x)
+                loss = self.get_loss(logits, y)
+                losses_[steps] = loss
+            losses.append(losses_.mean())
+        return losses
 
     def generate(self, encode_fn, decode_fn, initial_texts, n_tokens, print_batch_num=0): # TODO: print batches simultaneously
         self.eval()
@@ -73,7 +110,7 @@ class GPT(nn.Module):
             tensor = torch.tensor(encode_fn(text), dtype=torch.int64)
             tensor = F.pad(tensor, (self.sequence_dim-len(text), 0))
             encoded_texts.append(tensor)
-        x = torch.stack(encoded_texts, dim=0).to(self.dummy_param.device)
+        x = torch.stack(encoded_texts, dim=0).to(self.device)
         for i in range(n_tokens):
             x_cropped = x[:, -self.sequence_dim:] # crop s.t. it's <= sequence_dim
             logits = self(x_cropped) # (N, L, E)
@@ -85,5 +122,4 @@ class GPT(nn.Module):
             if print_batch_num is not None:
                 next_token = decode_fn(y_pred[print_batch_num].cpu().numpy())
                 print(next_token, end='')
-        self.train() # TODO: remove?
         return x
