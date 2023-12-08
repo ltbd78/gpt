@@ -18,9 +18,20 @@ Next steps (will complete most before Dec 10):
 - nn.Parallel for multi GPU scaling
 - training on more datasets
 
-
 To Use:
 
 Run GPT.ipynb from beginning to end.
 
 Recommended to have pytorch v2 or higher to experiment with `is_causal` parameter in `nn.MultiheadAttention.foward`
+
+References:
+
+nanoGPT - https://github.com/karpathy/nanoGPT
+
+1706 - Attention is All You Need - https://arxiv.org/abs/1706.03762
+
+1806 - GPT-1 - https://openai.com/research/language-unsupervised
+
+1902 - GPT-2 - https://openai.com/research/better-language-models
+
+2005 - GPT-3 - https://arxiv.org/pdf/2005.14165.pdf
