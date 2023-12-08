@@ -1,4 +1,5 @@
 from attention import *
+import warnings
 
 # TODO: add type hints
 
@@ -93,8 +94,11 @@ class GPT(nn.Module):
         losses = []
         for dataset in datasets:
             dataloader = torch.utils.data.DataLoader(dataset, batch_size=batch_size, shuffle=True)
-            assert val_steps < len(dataloader)
-            losses_ = torch.full((val_steps,), float('nan'), device=self.device) # slightly faster if same device
+            if val_steps >= len(dataloader):
+                warnings.warn(f"valsteps {val_steps} >= len(dataloader) {len(dataloader)}\nUsing whole dataset.")
+                losses_ = torch.full((len(dataloader),), float('nan'), device=self.device) # slightly faster if same device
+            else:
+                losses_ = torch.full((val_steps,), float('nan'), device=self.device) # slightly faster if same device
             for steps, (x, y) in enumerate(dataloader):
                 if steps >= val_steps:
                     break
@@ -113,8 +117,9 @@ class GPT(nn.Module):
 
         encoded_texts = []
         for text in initial_texts:
-            tensor = torch.tensor(encode_fn(text), dtype=torch.int64)
-            tensor = F.pad(tensor, (self.sequence_dim-len(text), 0))
+            encoded_text = encode_fn(text)
+            tensor = torch.tensor(encoded_text, dtype=torch.int64)
+            tensor = F.pad(tensor, (self.sequence_dim-len(encoded_text), 0))
             encoded_texts.append(tensor)
         x = torch.stack(encoded_texts, dim=0).to(self.device)
         for i in range(n_tokens):
