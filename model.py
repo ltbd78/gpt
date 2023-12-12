@@ -95,7 +95,7 @@ class GPT(nn.Module):
         for dataset in datasets:
             dataloader = torch.utils.data.DataLoader(dataset, batch_size=batch_size, shuffle=True)
             if val_steps >= len(dataloader):
-                warnings.warn(f"valsteps {val_steps} >= len(dataloader) {len(dataloader)}\nUsing whole dataset.")
+                warnings.warn(f"valsteps {val_steps} >= len(dataloader) {len(dataloader)} | Using whole dataset.")
                 losses_ = torch.full((len(dataloader),), float('nan'), device=self.device) # slightly faster if same device
             else:
                 losses_ = torch.full((val_steps,), float('nan'), device=self.device) # slightly faster if same device
@@ -109,31 +109,6 @@ class GPT(nn.Module):
                 losses_[steps] = loss.item() # .item() avoids cuda out of memory error due to grads
             losses.append(losses_.mean().item())
         return losses
-
-    def generate(self, encode_fn, decode_fn, initial_texts, n_tokens, print_batch_num=0): # TODO: print batches simultaneously
-        self.eval()
-        if print_batch_num is not None:
-            print(initial_texts[print_batch_num], end='')
-
-        encoded_texts = []
-        for text in initial_texts:
-            encoded_text = encode_fn(text)
-            tensor = torch.tensor(encoded_text, dtype=torch.int64)
-            tensor = F.pad(tensor, (self.sequence_dim-len(encoded_text), 0))
-            encoded_texts.append(tensor)
-        x = torch.stack(encoded_texts, dim=0).to(self.device)
-        for i in range(n_tokens):
-            x_cropped = x[:, -self.sequence_dim:] # crop s.t. it's <= sequence_dim
-            logits = self(x_cropped) # (N, L, E)
-            logits = logits[:, -1, :] # (N, E)
-            probs = F.softmax(logits, dim=-1) # (N, E)
-            y_pred = torch.multinomial(probs, num_samples=1) # (N, 1)
-            x = torch.cat((x, y_pred), dim=1) # (N, L) + (N, 1) = (N, L + 1)
-
-            if print_batch_num is not None:
-                next_token = decode_fn(y_pred[print_batch_num].cpu().numpy())
-                print(next_token, end='')
-        return x
     
     def save(self, path, optimizer_state_dict=None):
         torch.save({
