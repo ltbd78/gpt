@@ -1,4 +1,4 @@
-from .attention import *
+from attention import *
 import warnings
 
 # TODO: add type hints

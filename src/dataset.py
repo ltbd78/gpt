@@ -1,5 +1,10 @@
+import os
+import pickle
+
 import torch
 import tiktoken
+import tiktoken_ext.openai_public
+
 
 class CharacterDataset(torch.utils.data.Dataset):
     def __init__(self, filepath, seq_len=8):
@@ -26,6 +31,7 @@ class CharacterDataset(torch.utils.data.Dataset):
     def decode(self, array):
         return ''.join([self.idx_to_char[idx] for idx in array])
 
+
 class WordDataset(torch.utils.data.Dataset):
     def __init__(self, filepath, seq_len=8):
         self.seq_len = seq_len
@@ -48,3 +54,8 @@ class WordDataset(torch.utils.data.Dataset):
 
     def decode(self, array):
         return self.enc.decode(array)
+    
+    def save_encodings(self, path_dir):
+        tiktoken_gpt2 = tiktoken_ext.openai_public.gpt2()
+        with open(os.path.join(path_dir, 'tiktoken_gpt2.pkl'), 'wb') as f:
+            pickle.dump(tiktoken_gpt2, f)
