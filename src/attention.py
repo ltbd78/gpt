@@ -2,6 +2,7 @@ import torch
 import torch.nn as nn
 from torch.nn import functional as F
 
+
 class MultiheadAttention(nn.Module):
     def __init__(self, embed_dim, num_heads, dropout=0.0, batch_first=True):
         super().__init__()

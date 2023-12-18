@@ -1,0 +1,7 @@
+# --index-url <can specify different index if needed>
+# WARNING: if you have multiple requirements.txt with different index-urls, `pip install -r r1.txt -r r2.txt` will use the last argument's --index-url for everything
+kfp~=2.4.0
+torch~=2.1.1
+tiktoken~=0.5.2
+google-cloud-storage~=2.14.0
+google-cloud-aiplatform~=1.38.1

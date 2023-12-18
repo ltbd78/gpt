@@ -1,8 +1,9 @@
-from attention import *
 import warnings
 
-# TODO: add type hints
+from attention import *
 
+
+# TODO: add type hints to modules
 class MLP(nn.Module):
     def __init__(self, in_features, out_features, dropout=0.0):
         super().__init__()
@@ -15,6 +16,7 @@ class MLP(nn.Module):
 
     def forward(self, x):
         return self.net(x)
+
 
 class SelfAttentionBlock(nn.Module):
     def __init__(self, sequence_dim, embed_dim, num_heads, dropout=0.0): # L, E, H
@@ -34,6 +36,7 @@ class SelfAttentionBlock(nn.Module):
         x = x + attn_output # resid + attention
         x = x + self.mlp(self.ln2(x)) # resid + think on data
         return x # (N, L, E)
+
 
 class GPT(nn.Module):
     def __init__(self, vocab_dim, sequence_dim, embed_dim, num_heads, num_layers, dropout=0.0, device='cpu'):
@@ -116,8 +119,8 @@ class GPT(nn.Module):
             'optimizer_state_dict': optimizer_state_dict, # to resume training
         }, path)
     
-    def load(self, path, optimizer=None):
-        checkpoint = torch.load(path)
+    def load(self, path, optimizer=None, map_location=None):
+        checkpoint = torch.load(path, map_location=map_location)
         self.load_state_dict(checkpoint['model_state_dict'])
         if optimizer is not None:
             optimizer.load_state_dict(checkpoint['optimizer_state_dict'])

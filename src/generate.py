@@ -1,5 +1,6 @@
 import torch
 
+
 def generate_batch(model, encode_fn, decode_fn, initial_texts, n_tokens, print_batch_num=0): # TODO: print batches simultaneously
     model.eval()
     if print_batch_num is not None:
