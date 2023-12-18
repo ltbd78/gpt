@@ -55,7 +55,7 @@ class WordDataset(torch.utils.data.Dataset):
     def decode(self, array):
         return self.enc.decode(array)
     
-    def save_encodings(self, path_dir):
+    def save_encodings(self, path):
         tiktoken_gpt2 = tiktoken_ext.openai_public.gpt2()
-        with open(os.path.join(path_dir, 'tiktoken_gpt2.pkl'), 'wb') as f:
+        with open(path, 'wb') as f:
             pickle.dump(tiktoken_gpt2, f)
