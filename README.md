@@ -1,4 +1,4 @@
-Homemade character-level GPT trained for 1-2 minutes on Tiny Shakespeare dataset using NVIDIA 2070 Super (Desktop) and NVIDIA 3070 (Laptop).
+Homemade GPT trained on Tiny Shakespeare dataset using NVIDIA 2070 Super (Desktop) and NVIDIA 3070 (Laptop).
 
 Follows theoretical concepts in Karpathy's tutorial but diverges in code style and implementation.
 
