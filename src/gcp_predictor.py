@@ -22,12 +22,18 @@ class GPTPredictor(Predictor):
         self.logger.debug(f'DEBUG artifact_uri: {artifacts_uri}')
         self.logger.debug(str(os.listdir('./')))
         
-        with open('./tiktoken_gpt2.pkl', 'rb') as f:
-             tiktoken_gpt2 = pickle.load(f)
-        self.enc = tiktoken.core.Encoding(tiktoken_gpt2.pop('name'), **tiktoken_gpt2)
+        with open('./tiktoken_config.pkl', 'rb') as f:
+             tiktoken_config = pickle.load(f)
+        self.enc = tiktoken.core.Encoding(
+                tiktoken_config['name'],
+                explicit_n_vocab=tiktoken_config['explicit_n_vocab'],
+                pat_str=tiktoken_config['pat_str'],
+                mergeable_ranks=tiktoken_config['mergeable_ranks'],
+                special_tokens=tiktoken_config['special_tokens'],
+            )
 
-        with open('./config.pkl', 'rb') as f:
-            config = pickle.load(f)
+        with open('./model_config.pkl', 'rb') as f:
+            model_config = pickle.load(f)
 
         if torch.cuda.is_available():
             device = torch.device('cuda')
@@ -37,12 +43,12 @@ class GPTPredictor(Predictor):
         self.logger.debug(f'Device: {device}')
 
         self.model = GPT(
-            config['vocab_dim'],
-            config['sequence_dim'],
-            config['embed_dim'],
-            config['num_heads'],
-            config['num_layers'],
-            dropout=config['dropout'],
+            model_config['vocab_dim'],
+            model_config['sequence_dim'],
+            model_config['embed_dim'],
+            model_config['num_heads'],
+            model_config['num_layers'],
+            dropout=model_config['dropout'],
             device=device,
         )
         self.model.load('./gpt.pth', map_location=device)

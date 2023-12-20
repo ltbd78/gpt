@@ -8,19 +8,18 @@ Custom MultiheadAttention diverges from Karpathy in that it allows possibility o
 
 Careful variable naming (closely following torch's naming style) and plenty of in-line documentation allows for easy understanding of repo.
 
-Was not able to scale due to limited time, but clean code foundation has been laid.
+Added training and Deployment on GCP.
 
-Next steps (will complete most before Dec 10):
-- add model save, load, resume training
-- training on word-level embeddings instead of character-level embeddings (see packages: tiktoken, sentencepiece)
-- making the model larger (increasing num_layers, embed_dim, num_heads, sequence_dim, batch_size, train_steps)
-- training longer (overnight)
+Next steps:
 - nn.Parallel for multi GPU scaling
 - training on more datasets
 
-To Use:
+Notes
+- `GPT.ipynb` trains torch model locally
+- `deployment.ipynb` deploys model on gcp endpoint
+- `pipeline.ipynb` trains and deploys using kfp on gcp (will req an image file generated from deployment.ipynb)
+- `kfp tutorial.ipynb` shows simple kfp examples
 
-Run GPT.ipynb from beginning to end.
 
 Recommended to have pytorch v2 or higher to experiment with `is_causal` parameter in `nn.MultiheadAttention.foward`
 
