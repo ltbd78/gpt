@@ -4,36 +4,29 @@ from attention import *
 
 
 # TODO: add type hints to modules
-class MLP(nn.Module):
-    def __init__(self, in_features, out_features, dropout=0.0):
+class SelfMultiheadAttentionBlock(nn.Module):
+    """
+    Similar to:
+    https://pytorch.org/docs/stable/generated/torch.nn.TransformerEncoderLayer.html
+    """
+    def __init__(self, d_model, nhead, dim_feedforward=2048, dropout=0.0):
         super().__init__()
-        self.net = nn.Sequential(
-            nn.Linear(in_features, 4 * in_features), # TODO: 4x according to paper
+        self.ln1 = nn.LayerNorm(d_model) # https://arxiv.org/pdf/2002.04745.pdf
+        self.self_attn = MultiheadAttention(d_model, nhead, dropout=dropout, batch_first=True) # can prefix nn. to use torch's; if errors, make sure torch is v2.1.1
+        self.dropout = nn.Dropout(dropout)
+        self.ln2 = nn.LayerNorm(d_model)
+        self.mlp = nn.Sequential(
+            nn.Linear(d_model, dim_feedforward),
             nn.GELU(),
-            nn.Linear(4 * in_features, out_features), # projection layer
+            nn.Dropout(dropout),
+            nn.Linear(dim_feedforward, d_model), # projection layer
             nn.Dropout(dropout)
         )
 
-    def forward(self, x):
-        return self.net(x)
-
-
-class SelfAttentionBlock(nn.Module):
-    def __init__(self, sequence_dim, embed_dim, num_heads, dropout=0.0): # L, E, H
-        super().__init__()
-        # self.register_buffer("attn_mask", torch.triu(torch.full((sequence_dim, sequence_dim), float('-inf')), diagonal=1)) # flavor 1 - pytorch
-        self.register_buffer("attn_mask", torch.tril(torch.ones(sequence_dim, sequence_dim)) == 0) # flavor 2 - karpathy
-
-        self.ln1 = nn.LayerNorm(embed_dim) # https://arxiv.org/pdf/2002.04745.pdf
-        # if nn.MultiheadAttention errors, make sure torch is v2.1.1
-        self.mha = MultiheadAttention(embed_dim, num_heads, dropout=dropout, batch_first=True) # can prefix nn. to use torch's
-        self.ln2 = nn.LayerNorm(embed_dim)
-        self.mlp = MLP(embed_dim, embed_dim, dropout=dropout)
-
-    def forward(self, x): # (N, L, E)
+    def forward(self, x, src_mask=None, src_key_padding_mask=None, is_causal=False): # (N, L, E)
         ln_x = self.ln1(x) # saves as separate var ln_x since x is used for resid later
-        attn_output, attn_output_weights = self.mha(ln_x, ln_x, ln_x, need_weights=False, attn_mask=self.attn_mask, is_causal=True) # self attend
-        x = x + attn_output # resid + attention
+        attn_output, attn_output_weights = self.self_attn(ln_x, ln_x, ln_x, need_weights=False, attn_mask=src_mask, is_causal=is_causal)
+        x = x + self.dropout(attn_output) # resid + self-attention
         x = x + self.mlp(self.ln2(x)) # resid + think on data
         return x # (N, L, E)
 
@@ -41,12 +34,24 @@ class SelfAttentionBlock(nn.Module):
 class GPT(nn.Module):
     def __init__(self, vocab_dim, sequence_dim, embed_dim, num_heads, num_layers, dropout=0.0, device='cpu'):
         super().__init__()
-        self.sequence_dim = sequence_dim
+        self.sequence_dim = sequence_dim # also used for generate.py
+        
+        # self.register_buffer("attn_mask", torch.triu(torch.full((sequence_dim, sequence_dim), float('-inf')), diagonal=1)) # flavor 1 - pytorch
+        self.register_buffer("attn_mask", torch.tril(torch.ones(sequence_dim, sequence_dim)) == 0) # flavor 2 - karpathy
 
         self.token_embedding = nn.Embedding(vocab_dim, embed_dim)
         self.position_embedding = nn.Embedding(sequence_dim, embed_dim)
         self.dropout = nn.Dropout(dropout)
-        self.blocks = nn.Sequential(*[SelfAttentionBlock(sequence_dim, embed_dim, num_heads, dropout=dropout) for i in range(num_layers)])
+        
+        # if using personal model
+        self.smab = SelfMultiheadAttentionBlock(embed_dim, num_heads, dim_feedforward=4*embed_dim, dropout=dropout) # 4x according to paper
+        
+        # # if using PyTorch's model
+        # self.smab = nn.TransformerEncoderLayer(embed_dim, num_heads, dim_feedforward=4*embed_dim, dropout=dropout, activation="gelu", batch_first=True, norm_first=True)
+        
+        # TODO: examine discrepancies in num of params between personal and PyTorch's
+        
+        self.blocks = nn.TransformerEncoder(self.smab, num_layers=num_layers)
         self.ln = nn.LayerNorm(embed_dim)
         self.linear = nn.Linear(embed_dim, vocab_dim)
         
@@ -64,7 +69,7 @@ class GPT(nn.Module):
         position_embeddings = self.position_embedding(torch.arange(L).to(x.device)) # (L, E) # T <= sequence_dim
         x = token_embeddings + position_embeddings # (N, L, E) +  (-, L, E) -> (N, L, E)
         x = self.dropout(x)  # TODO: test with and without
-        x = self.blocks(x) # (N, L, E)
+        x = self.blocks(x, mask=self.attn_mask, is_causal=True) # (N, L, E)
         x = self.ln(x) # (N, L, E)
         logits = self.linear(x) # (N, L, E)
         return logits
