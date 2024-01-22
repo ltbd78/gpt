@@ -31,8 +31,8 @@ class SelfAttentionBlock(nn.Module):
         self.mlp = MLP(embed_dim, embed_dim, dropout=dropout)
 
     def forward(self, x): # (N, L, E)
-        x = self.ln1(x)
-        attn_output, attn_output_weights = self.mha(x, x, x, need_weights=False, attn_mask=self.attn_mask, is_causal=True) # self attend
+        ln_x = self.ln1(x) # saves as separate var ln_x since x is used for resid later
+        attn_output, attn_output_weights = self.mha(ln_x, ln_x, ln_x, need_weights=False, attn_mask=self.attn_mask, is_causal=True) # self attend
         x = x + attn_output # resid + attention
         x = x + self.mlp(self.ln2(x)) # resid + think on data
         return x # (N, L, E)
