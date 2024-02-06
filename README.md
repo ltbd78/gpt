@@ -1,10 +1,12 @@
-Homemade GPT trained on Tiny Shakespeare dataset using NVIDIA 2070 Super (Desktop) and NVIDIA 3070 (Laptop).
+## Homemade custom GPT trained on Tiny Shakespeare dataset
 
-Follows theoretical concepts in Karpathy's tutorial but diverges in code style and implementation.
+Trained via NVIDIA 2070 Super (Desktop) and NVIDIA 3070 (Laptop)
 
-Custom MultiheadAttention implementation performs as fast as torch's nn.MultiheadAttention.
+Follows theoretical concepts in Karpathy's tutorial but diverges in implementation.
 
-Custom MultiheadAttention diverges from Karpathy in that it allows possibility of cross-attention.
+Custom MultiheadAttention implementation performs as fast as torch's nn.MultiheadAttention and allows possibility of cross-attention.
+
+Custom SelfMultiheadAttentionBlock similar to torch's nn.TransformerEncoderLayer.
 
 Careful variable naming (closely following torch's naming style) and plenty of in-line documentation allows for easy understanding of repo.
 
@@ -30,15 +32,9 @@ Next steps:
 - nn.Parallel for multi GPU scaling
 - training on more datasets
 
-Notes
-- `GPT.ipynb` trains torch model locally
-- `deployment.ipynb` deploys model on gcp endpoint
-- `pipeline.ipynb` trains and deploys using kfp on gcp (will req an image file generated from deployment.ipynb)
-- `kfp tutorial.ipynb` shows simple kfp examples
-
 Recommended to have pytorch v2 or higher to experiment with `is_causal` parameter in `nn.MultiheadAttention.foward`
 
-References:
+## References
 
 nanoGPT - https://github.com/karpathy/nanoGPT
 
@@ -49,3 +45,26 @@ nanoGPT - https://github.com/karpathy/nanoGPT
 1902 - GPT-2 - https://openai.com/research/better-language-models
 
 2005 - GPT-3 - https://arxiv.org/pdf/2005.14165.pdf
+
+## Repository Structure
+
+- data/
+    - `shakespeare.txt` - 40000 lines of shakespeare
+- src/
+    - `__init__.py` - mediates a package reference error upon containerized deployment vs local runtime
+    - `attention_slow.py` - original attention module in Karpathy's tutorial
+    - `attention.py` - an optimized attention module for faster training; interface mirrors PyTorch's nn.MultiheadAttention
+    - `dataset.py` - wraps the dataset into a PyTorch's dataset class
+    - `deploy_requirements.txt` - deployment image will `pip install` this
+    - `gcp_predictor.py` - required in deployment image; follows GCP deployment interface
+    - `generate.py` - helper function for generating text using trained model
+    - `model.py` - GPT model; imports `attention.py`
+- `deployment.ipynb` - deploy a trained gpt model to vertex ai model registry
+- `Dockerfile` - for kubeflow image
+- `gpt.ipynb` - training gpt locally
+- `kfp tutorial.ipynb` - simple example on how to use kubeflow
+- `pipeline.ipynb` - training and deploying gpt on vertex ai
+- `README.md` - you are reading this right now
+- `requirements.txt` - kubeflow image will `pip install` this
+
+<img src='./diagram.png'>
